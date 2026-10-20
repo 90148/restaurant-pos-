@@ -2,9 +2,11 @@ import { OrderType } from './order';
 
 export type BillStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
 
-export type PaymentMethod = 'CASH' | 'CARD' | 'UPI' | 'WALLET';
+export type PaymentGatewayProvider = 'STRIPE' | 'RAZORPAY';
 
-export type PaymentStatus = 'SUCCESS' | 'REFUNDED' | 'FAILED';
+export type PaymentMethod = 'CASH' | 'CARD' | 'UPI' | 'WALLET' | 'STRIPE' | 'RAZORPAY';
+
+export type PaymentStatus = 'SUCCESS' | 'REFUNDED' | 'FAILED' | 'PENDING' | 'EXPIRED' | 'CANCELLED';
 
 export interface BillItem {
   id: string;
@@ -33,6 +35,51 @@ export interface Payment {
   createdById?: string;
   createdByName?: string;
   createdAt: string;
+  gatewayProvider?: PaymentGatewayProvider;
+  gatewayOrderId?: string;
+  gatewayPaymentId?: string;
+  gatewaySignature?: string;
+  currency?: string;
+}
+
+export interface CreateCheckoutSessionRequest {
+  billId: string;
+  gatewayProvider: PaymentGatewayProvider;
+  notes?: string;
+}
+
+export interface CreateCustomerCheckoutSessionRequest {
+  amount: number;
+  currency?: string;
+  orderNumber?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  returnUrl?: string;
+  cancelUrl?: string;
+  notes?: string;
+}
+
+export interface CheckoutSessionResponse {
+  gatewayProvider: PaymentGatewayProvider;
+  paymentId: string;
+  gatewayOrderId: string;
+  checkoutUrl?: string;
+  keyId?: string;
+  amount: number;
+  amountInSubunits: number;
+  currency: string;
+  billId: string;
+  billNumber: string;
+  outletName: string;
+}
+
+export interface RazorpayVerifyPaymentRequest {
+  billId: string;
+  paymentId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
 }
 
 export interface Bill {

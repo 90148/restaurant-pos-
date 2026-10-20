@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ReceiptText,
   Clock,
@@ -33,6 +33,10 @@ export const CustomerOrdersPage: React.FC = () => {
     feedbackOrder,
     setFeedbackOrder,
   } = useCustomerOrders();
+
+  const [searchParams] = useSearchParams();
+  const paymentSuccess = searchParams.get('payment') === 'success';
+  const orderNumberParam = searchParams.get('orderNumber');
 
   const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
   const [splitOrder, setSplitOrder] = useState<CustomerOrder | null>(null);
@@ -112,6 +116,35 @@ export const CustomerOrdersPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Stripe Payment Success Banner */}
+      {paymentSuccess && (
+        <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-white">Stripe Payment Confirmed! 🎉</p>
+              <p className="text-xs text-emerald-300/80">
+                {orderNumberParam
+                  ? `Your order #${orderNumberParam} has been successfully paid via Stripe and routed to the kitchen!`
+                  : 'Your order has been paid via Stripe and routed to the kitchen!'}
+              </p>
+            </div>
+          </div>
+          {orderNumberParam && (
+            <button
+              type="button"
+              onClick={() => {
+                const found = orders.find((o) => o.orderNumber === orderNumberParam);
+                if (found) setSelectedReceiptOrder(found);
+              }}
+              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors self-start sm:self-auto"
+            >
+              View Tax Receipt
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Orders List */}
       {displayedOrders.length === 0 ? (

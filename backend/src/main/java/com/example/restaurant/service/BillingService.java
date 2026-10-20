@@ -236,9 +236,131 @@ public class BillingService {
     }
 
     @Transactional(readOnly = true)
-    public BillDto getBillById(String id) {
-        Bill bill = billRepository.findById(id)
+    public Bill getBillEntity(String id) {
+        return billRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill", "id", id));
+    }
+
+    @Transactional
+    public BillDto reconcileGatewayPayment(String billId,
+                                           String paymentId,
+                                           PaymentGatewayProvider provider,
+                                           String gatewayOrderId,
+                                           String gatewayPaymentId,
+                                           String gatewaySignature,
+                                           BigDecimal amountPaid,
+                                           String currency,
+                                           String currentUsername,
+                                           String notes) {
+        Bill bill = getBillEntity(billId);
+
+        // Find existing payment (by paymentId or gatewayOrderId)
+        Payment payment = null;
+        if (paymentId != null && !paymentId.isBlank()) {
+            payment = paymentRepository.findById(paymentId).orElse(null);
+        }
+        if (payment == null && gatewayOrderId != null && !gatewayOrderId.isBlank()) {
+            payment = paymentRepository.findByGatewayOrderId(gatewayOrderId).orElse(null);
+        }
+
+        // If payment was already marked SUCCESS, return without double-counting
+        if (payment != null && payment.getStatus() == PaymentStatus.SUCCESS) {
+            return mapToBillDto(bill);
+        }
+
+        User user = null;
+        if (currentUsername != null) {
+            user = userRepository.findByUsername(currentUsername).orElse(null);
+        }
+
+        PaymentMethod method = (provider == PaymentGatewayProvider.RAZORPAY)
+                ? PaymentMethod.RAZORPAY
+                : PaymentMethod.STRIPE;
+
+        if (payment == null) {
+            payment = new Payment();
+            payment.setId(UUID.randomUUID().toString());
+            payment.setBill(bill);
+            payment.setOutlet(bill.getOutlet());
+            payment.setPaymentMethod(method);
+            payment.setGatewayProvider(provider);
+            payment.setAmount(amountPaid);
+            payment.setTenderedAmount(amountPaid);
+            payment.setChangeAmount(BigDecimal.ZERO);
+            payment.setGatewayOrderId(gatewayOrderId);
+            payment.setGatewayPaymentId(gatewayPaymentId);
+            payment.setGatewaySignature(gatewaySignature);
+            payment.setTransactionRef(gatewayPaymentId != null ? gatewayPaymentId : gatewayOrderId);
+            payment.setCurrency(currency != null ? currency : "SGD");
+            payment.setStatus(PaymentStatus.SUCCESS);
+            payment.setCreatedBy(user);
+            payment.setNotes(notes != null ? notes : "Online payment via " + provider);
+            bill.addPayment(payment);
+        } else {
+            payment.setStatus(PaymentStatus.SUCCESS);
+            if (gatewayPaymentId != null) payment.setGatewayPaymentId(gatewayPaymentId);
+            if (gatewaySignature != null) payment.setGatewaySignature(gatewaySignature);
+            if (gatewayPaymentId != null) payment.setTransactionRef(gatewayPaymentId);
+            if (notes != null) payment.setNotes(notes);
+            if (user != null && payment.getCreatedBy() == null) payment.setCreatedBy(user);
+        }
+
+        // Recompute balances based on successful payments
+        BigDecimal totalPaid = bill.getPayments().stream()
+                .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        bill.setPaidAmount(totalPaid);
+        BigDecimal newBalance = bill.getTotalAmount().subtract(totalPaid);
+        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+            newBalance = BigDecimal.ZERO;
+        }
+        bill.setBalanceAmount(newBalance);
+
+        if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
+            bill.setStatus(BillStatus.PAID);
+            Order parentOrder = bill.getOrder();
+            if (parentOrder != null && parentOrder.getStatus() != OrderStatus.COMPLETED) {
+                parentOrder.setStatus(OrderStatus.COMPLETED);
+                orderRepository.save(parentOrder);
+                inventoryService.deductStockForOrder(parentOrder);
+
+                if (parentOrder.getTable() != null) {
+                    long activeOrders = orderRepository.countActiveOrdersByTable(
+                            parentOrder.getTable().getId(),
+                            TERMINAL_ORDER_STATUSES
+                    );
+                    if (activeOrders <= 0) {
+                        RestaurantTable table = parentOrder.getTable();
+                        table.setStatus(TableStatus.AVAILABLE);
+                        restaurantTableRepository.save(table);
+                        if (webSocketEventService != null) {
+                            webSocketEventService.publishTableEvent("TABLE_RELEASED", bill.getOutlet().getId(), table.getId(), table.getTableNumber());
+                        }
+                    }
+                }
+            }
+        } else {
+            bill.setStatus(BillStatus.PARTIALLY_PAID);
+        }
+
+        Bill saved = billRepository.save(bill);
+        BillDto dto = mapToBillDto(saved);
+        if (webSocketEventService != null) {
+            webSocketEventService.publishBillingEvent(
+                    bill.getStatus() == BillStatus.PAID ? "BILL_PAID" : "BILL_UPDATED",
+                    saved.getOutlet().getId(),
+                    saved.getId(),
+                    dto
+            );
+        }
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public BillDto getBillById(String id) {
+        Bill bill = getBillEntity(id);
         return mapToBillDto(bill);
     }
 

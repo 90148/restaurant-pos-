@@ -29,6 +29,7 @@ public class OrderController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ORDER_CREATE')")
     public ResponseEntity<ApiResponse<OrderDto>> createOrder(@Valid @RequestBody CreateOrderRequest request,
                                                              Authentication authentication) {
         String username = authentication != null ? authentication.getName() : null;

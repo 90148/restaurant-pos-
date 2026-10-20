@@ -40,6 +40,22 @@ public class Payment {
     @Column(nullable = false, length = 20)
     private PaymentStatus status = PaymentStatus.SUCCESS;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gateway_provider", length = 20)
+    private PaymentGatewayProvider gatewayProvider;
+
+    @Column(name = "gateway_order_id", length = 100)
+    private String gatewayOrderId;
+
+    @Column(name = "gateway_payment_id", length = 100)
+    private String gatewayPaymentId;
+
+    @Column(name = "gateway_signature", length = 255)
+    private String gatewaySignature;
+
+    @Column(length = 10)
+    private String currency = "SGD";
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
@@ -168,5 +184,71 @@ public class Payment {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public PaymentGatewayProvider getGatewayProvider() {
+        return gatewayProvider;
+    }
+
+    public void setGatewayProvider(PaymentGatewayProvider gatewayProvider) {
+        this.gatewayProvider = gatewayProvider;
+    }
+
+    public String getGatewayOrderId() {
+        return gatewayOrderId;
+    }
+
+    public void setGatewayOrderId(String gatewayOrderId) {
+        this.gatewayOrderId = gatewayOrderId;
+    }
+
+    public String getGatewayPaymentId() {
+        return gatewayPaymentId;
+    }
+
+    public void setGatewayPaymentId(String gatewayPaymentId) {
+        this.gatewayPaymentId = gatewayPaymentId;
+    }
+
+    public String getGatewaySignature() {
+        return gatewaySignature;
+    }
+
+    public void setGatewaySignature(String gatewaySignature) {
+        this.gatewaySignature = gatewaySignature;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public static Payment createGatewayPending(String id, Bill bill, Outlet outlet,
+                                               PaymentGatewayProvider provider,
+                                               PaymentMethod method,
+                                               BigDecimal amount,
+                                               String currency,
+                                               String gatewayOrderId,
+                                               User createdBy,
+                                               String notes) {
+        Payment p = new Payment();
+        p.setId(id);
+        p.setBill(bill);
+        p.setOutlet(outlet);
+        p.setGatewayProvider(provider);
+        p.setPaymentMethod(method);
+        p.setAmount(amount);
+        p.setTenderedAmount(amount);
+        p.setChangeAmount(BigDecimal.ZERO);
+        p.setCurrency(currency != null ? currency : "SGD");
+        p.setGatewayOrderId(gatewayOrderId);
+        p.setTransactionRef(gatewayOrderId);
+        p.setStatus(PaymentStatus.PENDING);
+        p.setCreatedBy(createdBy);
+        p.setNotes(notes);
+        return p;
     }
 }

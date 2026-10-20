@@ -9,10 +9,12 @@ import {
   Check,
   Plus,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { useCustomerCartContext } from '@/context/CustomerCartContext';
 import { useCustomerContext } from '@/context/CustomerContext';
-import { PaymentGatewayModal } from '@/components/customer/checkout/PaymentGatewayModal';
+import { useCustomerOrders } from '@/hooks/useCustomerOrders';
+import { createCustomerCheckoutSession } from '@/api/billing';
 import { OrderConfirmationModal } from '@/components/customer/order/OrderConfirmationModal';
 import { OrderTrackingModal } from '@/components/customer/order/OrderTrackingModal';
 import { DigitalReceiptModal } from '@/components/customer/order/DigitalReceiptModal';
@@ -59,8 +61,10 @@ export const CustomerCheckoutPage: React.FC = () => {
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [couponCodeInput, setCouponCodeInput] = useState('');
 
-  // Modals
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  // Orders & Stripe Redirection
+  const { placeOrder } = useCustomerOrders();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
   const [confirmedOrder, setConfirmedOrder] = useState<CustomerOrder | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<CustomerOrder | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<CustomerOrder | null>(null);
@@ -81,24 +85,52 @@ export const CustomerCheckoutPage: React.FC = () => {
     setNewApt('');
   };
 
-  const handleProceedToPayment = (e: React.FormEvent) => {
+  const handleProceedToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cartItems.length === 0) {
       navigate('/customer/menu');
       return;
     }
+    setPaymentError('');
+
     // Update profile with latest contact info
     updateProfile({
       name: customerName,
       phone: customerPhone,
       email: customerEmail,
     });
-    setIsPaymentModalOpen(true);
-  };
 
-  const handlePaymentSuccess = (order: CustomerOrder) => {
-    setIsPaymentModalOpen(false);
-    setConfirmedOrder(order);
+    setIsRedirecting(true);
+
+    try {
+      // 1. Create order in customer context
+      const order = placeOrder('CARD', specialInstructions);
+
+      // 2. Call backend to initiate real Stripe Checkout Session
+      const session = await createCustomerCheckoutSession({
+        amount: cartSummary.grandTotal,
+        currency: 'SGD',
+        orderNumber: order.orderNumber,
+        customerName: customerName.trim() || undefined,
+        customerEmail: customerEmail.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        returnUrl: `${window.location.origin}/customer/orders?payment=success&orderNumber=${order.orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${window.location.origin}/customer/checkout?payment=cancelled`,
+        notes: `Customer Online Order #${order.orderNumber}`,
+      });
+
+      // 3. Immediately redirect to Stripe hosted checkout!
+      if (session.checkoutUrl) {
+        window.location.href = session.checkoutUrl;
+      } else {
+        throw new Error('Stripe checkout URL was not returned by server.');
+      }
+    } catch (err: unknown) {
+      console.error('Failed to initiate Stripe payment', err);
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setPaymentError(error?.response?.data?.message || error?.message || 'Failed to redirect to Stripe Checkout.');
+      setIsRedirecting(false);
+    }
   };
 
   if (cartItems.length === 0 && !confirmedOrder) {
@@ -482,29 +514,41 @@ export const CustomerCheckoutPage: React.FC = () => {
               </div>
             </div>
 
+            {paymentError && (
+              <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
             {/* Pay Button */}
             <button
               type="button"
               onClick={handleProceedToPayment}
-              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black rounded-xl text-sm shadow-xl shadow-amber-500/25 transition-all flex items-center justify-between px-5 active:scale-98"
+              disabled={isRedirecting}
+              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-60 text-slate-950 font-black rounded-xl text-sm shadow-xl shadow-amber-500/25 transition-all flex items-center justify-between px-5 active:scale-98 cursor-pointer disabled:cursor-not-allowed"
             >
-              <span>Proceed to Payment</span>
-              <div className="flex items-center gap-1.5">
-                <span>₹{cartSummary.grandTotal}</span>
-                <ArrowRight className="w-4 h-4" />
-              </div>
+              {isRedirecting ? (
+                <div className="flex items-center justify-center gap-2 w-full py-0.5">
+                  <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  <span>Redirecting to Stripe Checkout...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Proceed to Stripe Checkout</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>${cartSummary.grandTotal}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </>
+              )}
             </button>
           </div>
         </div>
       </div>
-
-      {/* Payment Gateway Modal */}
-      <PaymentGatewayModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        onSuccess={handlePaymentSuccess}
-        specialInstructions={specialInstructions}
-      />
 
       {/* Order Confirmation Modal */}
       <OrderConfirmationModal

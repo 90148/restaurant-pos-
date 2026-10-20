@@ -31,4 +31,10 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
                                              @Param("endDate") LocalDateTime endDate);
 
     List<Payment> findByOutletIdAndCreatedAtBetweenOrderByCreatedAtAsc(String outletId, LocalDateTime start, LocalDateTime end);
+
+    java.util.Optional<Payment> findByGatewayOrderId(String gatewayOrderId);
+
+    java.util.Optional<Payment> findByGatewayPaymentId(String gatewayPaymentId);
+
+    java.util.Optional<Payment> findByGatewayProviderAndGatewayOrderId(com.example.restaurant.entity.PaymentGatewayProvider gatewayProvider, String gatewayOrderId);
 }

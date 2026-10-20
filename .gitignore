@@ -25,6 +25,10 @@ backend/target/
 
 # Environment Variables & Secrets
 .env
+.env.*
+*.env
+backend/.env
+frontend/.env
 *.pem
 *.key
 

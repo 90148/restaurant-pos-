@@ -18,6 +18,7 @@ import { PosPage } from '@/pages/pos/PosPage';
 import { OrderListPage } from '@/pages/orders/OrderListPage';
 import { KitchenDisplayPage } from '@/pages/kitchen/KitchenDisplayPage';
 import { BillingListPage } from '@/pages/billing/BillingListPage';
+import { StripeReturnPage } from '@/pages/billing/StripeReturnPage';
 import { InventoryListPage } from '@/pages/inventory/InventoryListPage';
 import { PurchaseOrderListPage } from '@/pages/purchases/PurchaseOrderListPage';
 import { RefundListPage } from '@/pages/refunds/RefundListPage';
@@ -190,6 +191,14 @@ export const App: React.FC = () => {
                 element={
                   <RoleBasedRoute requiredPermission="BILL_VIEW">
                     <BillingListPage />
+                  </RoleBasedRoute>
+                }
+              />
+              <Route
+                path="billing/stripe-return"
+                element={
+                  <RoleBasedRoute requiredPermission="BILL_VIEW">
+                    <StripeReturnPage />
                   </RoleBasedRoute>
                 }
               />

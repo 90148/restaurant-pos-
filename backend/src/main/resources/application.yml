@@ -21,6 +21,22 @@ app:
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
+  payment:
+    default-gateway: ${DEFAULT_PAYMENT_GATEWAY:STRIPE}
+    stripe:
+      enabled: ${STRIPE_ENABLED:true}
+      secret-key: ${STRIPE_SECRET_KEY:sk_test_placeholder}
+      publishable-key: ${STRIPE_PUBLISHABLE_KEY:pk_test_placeholder}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder}
+      currency: ${STRIPE_CURRENCY:sgd}
+      success-url: ${STRIPE_SUCCESS_URL:http://localhost:5173/billing/stripe-return?session_id={CHECKOUT_SESSION_ID}}
+      cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/billing?status=cancelled}
+    razorpay:
+      enabled: ${RAZORPAY_ENABLED:true}
+      key-id: ${RAZORPAY_KEY_ID:rzp_test_placeholder}
+      key-secret: ${RAZORPAY_KEY_SECRET:rzp_secret_placeholder}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:rzp_whsec_placeholder}
+      currency: ${RAZORPAY_CURRENCY:INR}
 
 springdoc:
   api-docs:

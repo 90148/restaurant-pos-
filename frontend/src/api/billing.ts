@@ -4,6 +4,10 @@ import {
   BillingStats,
   ProcessPaymentRequest,
   BillFilterParams,
+  CreateCheckoutSessionRequest,
+  CreateCustomerCheckoutSessionRequest,
+  CheckoutSessionResponse,
+  RazorpayVerifyPaymentRequest,
 } from '@/types/billing';
 import { ApiResponse, PagedResponse } from '@/types/api';
 
@@ -39,5 +43,56 @@ export const processPayment = async (
   data: ProcessPaymentRequest
 ): Promise<Bill> => {
   const response = await apiClient.post<ApiResponse<Bill>>(`/bills/${billId}/payments`, data);
+  return response.data.data;
+};
+
+export const createCheckoutSession = async (
+  data: CreateCheckoutSessionRequest,
+  returnUrl?: string,
+  cancelUrl?: string
+): Promise<CheckoutSessionResponse> => {
+  const params: Record<string, string> = {};
+  if (returnUrl) params.returnUrl = returnUrl;
+  if (cancelUrl) params.cancelUrl = cancelUrl;
+
+  const response = await apiClient.post<ApiResponse<CheckoutSessionResponse>>(
+    '/payments/checkout-session',
+    data,
+    { params }
+  );
+  return response.data.data;
+};
+
+export const verifyRazorpayPayment = async (
+  data: RazorpayVerifyPaymentRequest
+): Promise<Bill> => {
+  const response = await apiClient.post<ApiResponse<Bill>>(
+    '/payments/razorpay/verify',
+    data
+  );
+  return response.data.data;
+};
+
+export const verifyStripePayment = async (
+  sessionId: string,
+  billId?: string
+): Promise<Bill> => {
+  const params: Record<string, string> = { sessionId };
+  if (billId) params.billId = billId;
+  const response = await apiClient.post<ApiResponse<Bill>>(
+    '/payments/stripe/verify',
+    null,
+    { params }
+  );
+  return response.data.data;
+};
+
+export const createCustomerCheckoutSession = async (
+  data: CreateCustomerCheckoutSessionRequest
+): Promise<CheckoutSessionResponse> => {
+  const response = await apiClient.post<ApiResponse<CheckoutSessionResponse>>(
+    '/payments/customer/checkout-session',
+    data
+  );
   return response.data.data;
 };
