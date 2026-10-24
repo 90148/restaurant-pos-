@@ -85,8 +85,15 @@ class PaymentGatewayIntegrationTests {
     @Test
     @DisplayName("Should reject webhook request with invalid signature")
     void testInvalidWebhookSignature() throws Exception {
-        // Stripe webhook without valid signature
+        // Stripe webhook without valid signature (standard route /webhook/stripe)
         mockMvc.perform(post("/api/payments/webhook/stripe")
+                        .header("Stripe-Signature", "t=12345,v1=invalidsig")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("{\"id\":\"evt_test123\"}"))
+                .andExpect(status().isBadRequest());
+
+        // Stripe webhook via alternate route /stripe/webhook
+        mockMvc.perform(post("/api/payments/stripe/webhook")
                         .header("Stripe-Signature", "t=12345,v1=invalidsig")
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("{\"id\":\"evt_test123\"}"))

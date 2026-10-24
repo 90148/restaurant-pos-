@@ -186,10 +186,11 @@ public class RazorpayPaymentGateway implements PaymentGateway {
     @Override
     @Transactional
     public GatewayWebhookResult processWebhook(String rawPayload, Map<String, String> headers) {
-        String signature = headers.get("x-razorpay-signature");
-        if (signature == null) {
-            signature = headers.get("X-Razorpay-Signature");
-        }
+        String signature = headers.entrySet().stream()
+                .filter(e -> "x-razorpay-signature".equalsIgnoreCase(e.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
 
         if (signature == null || signature.isBlank()) {
             throw new BusinessException("Missing X-Razorpay-Signature header");

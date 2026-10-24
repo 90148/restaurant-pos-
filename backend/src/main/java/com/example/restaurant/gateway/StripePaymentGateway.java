@@ -43,7 +43,7 @@ public class StripePaymentGateway implements PaymentGateway {
     @Value("${app.payment.stripe.currency:sgd}")
     private String defaultCurrency;
 
-    @Value("${app.payment.stripe.success-url:http://localhost:5173/billing?status=success&session_id={CHECKOUT_SESSION_ID}}")
+    @Value("${app.payment.stripe.success-url:http://localhost:5173/billing/stripe-return?session_id={CHECKOUT_SESSION_ID}}")
     private String defaultSuccessUrl;
 
     @Value("${app.payment.stripe.cancel-url:http://localhost:5173/billing?status=cancelled&session_id={CHECKOUT_SESSION_ID}}")
@@ -171,12 +171,19 @@ public class StripePaymentGateway implements PaymentGateway {
     @Override
     @Transactional
     public GatewayWebhookResult processWebhook(String rawPayload, Map<String, String> headers) {
-        String sigHeader = headers.get("stripe-signature");
-        if (sigHeader == null) {
-            sigHeader = headers.get("Stripe-Signature");
-        }
+        String sigHeader = headers.entrySet().stream()
+                .filter(e -> "stripe-signature".equalsIgnoreCase(e.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+
         if (sigHeader == null || sigHeader.isBlank()) {
             throw new BusinessException("Missing Stripe-Signature header");
+        }
+
+        if (webhookSecret == null || webhookSecret.isBlank() || "whsec_placeholder".equals(webhookSecret)) {
+            log.error("Stripe Webhook Secret is not configured. Please set STRIPE_WEBHOOK_SECRET.");
+            throw new BusinessException("Stripe Webhook Secret is not configured on server.");
         }
 
         Event event;

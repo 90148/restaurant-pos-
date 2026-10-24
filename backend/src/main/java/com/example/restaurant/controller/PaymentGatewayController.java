@@ -158,7 +158,7 @@ public class PaymentGatewayController {
         return ResponseEntity.ok(ApiResponse.ok("Stripe session verified successfully", null));
     }
 
-    @PostMapping("/webhook/{provider}")
+    @PostMapping({"/webhook/{provider}", "/{provider}/webhook"})
     public ResponseEntity<String> handleGatewayWebhook(
             @PathVariable String provider,
             @RequestBody String rawPayload,
