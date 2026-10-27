@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Sparkles,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { clsx } from 'clsx';
@@ -32,7 +33,12 @@ interface NavItem {
   role?: string;
 }
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { hasPermission, hasRole } = useAuth();
 
   const navItems: NavItem[] = [
@@ -64,7 +70,21 @@ export const Sidebar: React.FC = () => {
   });
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 h-screen border-r border-slate-800">
+    <>
+      {isOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 z-30 bg-slate-950/60 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside
+        className={clsx(
+          'fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col h-screen border-r border-slate-800 transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:flex-shrink-0',
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
       {/* Brand Header */}
       <div className="h-16 flex items-center px-6 border-b border-slate-800 gap-3">
         <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-bold text-lg">
@@ -74,6 +94,14 @@ export const Sidebar: React.FC = () => {
           <h1 className="text-sm font-bold text-white tracking-wide">RESTOMASTER</h1>
           <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Enterprise POS</p>
         </div>
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="ml-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
+          onClick={onClose}
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Navigation Links */}
@@ -82,6 +110,7 @@ export const Sidebar: React.FC = () => {
           <NavLink
             key={item.path}
             to={item.path}
+            onClick={onClose}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors',
@@ -124,7 +153,8 @@ export const Sidebar: React.FC = () => {
         <span>v1.0.0 (Phase 10)</span>
         <span className="text-emerald-400">Online</span>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 
